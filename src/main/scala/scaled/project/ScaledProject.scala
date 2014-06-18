@@ -4,21 +4,12 @@
 
 package scaled.project
 
-// import codex.extract.JavaExtractor
-// import codex.model.Source
-// import codex.store.{EphemeralStore, ProjectStore}
-import com.google.common.collect.{Multimap, HashMultimap}
-import java.nio.file.Paths
-import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.{Files, FileVisitResult, Path, SimpleFileVisitor}
-import reactual.Future
-import scala.collection.mutable.{Map => MMap}
+import java.nio.file.{Files, Path}
 import scaled._
 import scaled.pacman._
-import scaled.util.{BufferBuilder, Close}
+import scaled.util.Close
 
-class ScaledProject (val root :Path, msvc :MetaService, projectSvc :ProjectService)
-    extends AbstractFileProject(msvc) with JavaProject {
+class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProject(msvc) {
   import ScaledProject._
   import scala.collection.convert.WrapAsScala._
 
@@ -35,49 +26,22 @@ class ScaledProject (val root :Path, msvc :MetaService, projectSvc :ProjectServi
   def mod :Module = _mod.get
 
   // hibernate if package.scaled (or module.scaled) changes, which will trigger reload
-  metaSvc.service[WatchService].watchFile(pkgFile, file => hibernate())
-  if (Files.exists(modFile)) metaSvc.service[WatchService].watchFile(modFile, file => hibernate())
+  { val watchSvc = metaSvc.service[WatchService]
+    watchSvc.watchFile(pkgFile, file => hibernate())
+    if (Files.exists(modFile)) watchSvc.watchFile(modFile, file => hibernate())
+  }
   // note that we don't 'close' our watches, we'll keep them active for the lifetime of the editor
   // because it's low overhead; I may change my mind on this front later, hence this note
 
   def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
   def testSourceDirs :Seq[Path] = Seq(root.resolve("src/test"))
-  def allSourceDirs = sourceDirs ++ testSourceDirs
 
   def outputDir :Path = root.resolve("target/classes")
   def testOutputDir :Path = root.resolve("target/test-classes")
 
-  def buildClasspath :Seq[Path] = outputDir +: classpath(false)
-  def testClasspath :Seq[Path] = testOutputDir +: outputDir +: classpath(true)
-
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def ids = Seq(toSrcURL(mod.source))
   override def depends = mod.depends.flatMap(toId)
-
-  override def describeSelf (bb :BufferBuilder) {
-    super.describeSelf(bb)
-
-    bb.addSubHeader("Scaled Info")
-    bb.addSection("Source dirs:")
-    bb.addKeysValues("compile: " -> sourceDirs.mkString(" "),
-                     "test: "    -> testSourceDirs.mkString(" "))
-    // val srcsum = summarizeSources(true)
-    // if (!srcsum.isEmpty) {
-    //   bb.addSection("Source files:")
-    //   bb.addKeysValues(srcsum.asMap.entrySet.map(
-    //     e => (s".${e.getKey}: ", e.getValue.size.toString)).toSeq :_*)
-    // }
-    bb.addSection("Output dirs:")
-    bb.addKeysValues("compile: " -> outputDir.toString,
-                     "test: "    -> testOutputDir.toString)
-    bb.addSection("Compile classpath:")
-    buildClasspath foreach { p => bb.add(p.toString) }
-    bb.addSection("Test classpath:")
-    testClasspath foreach { p => bb.add(p.toString) }
-  }
-
-  // tell other Java projects where to find our compiled classes
-  override def classes = outputDir
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
 
@@ -91,19 +55,10 @@ class ScaledProject (val root :Path, msvc :MetaService, projectSvc :ProjectServi
     override def testOutputDir = ScaledProject.this.testOutputDir
   }
 
-  // TODO: how to determine what kind of tester to use?
-  override protected def createTester () :Tester = new JUnitTester(this) {
-    override def testSourceDirs = ScaledProject.this.testSourceDirs
-    override def testOutputDir = ScaledProject.this.testOutputDir
-    override def testClasspath = ScaledProject.this.testClasspath
-  }
-
-  override protected def createRunner () = new JavaRunner(this) {
-    override def execClasspath = buildClasspath // TODO
-  }
-
   // TODO: handle forTest
-  private def classpath (forTest :Boolean) :Seq[Path] = mod.loader(Pacman.repo).classpath
+  override protected def dependClasspath (forTest :Boolean) :Seq[Path] =
+    mod.loader(Pacman.repo).classpath
+
   // TODO: we want to route through project service to find projects kwown thereto, but that means
   // we have to reimplement the package deps + maven deps + system deps blah blah that pacman does
   // (or factor and complexify it so that we can reuse it)
