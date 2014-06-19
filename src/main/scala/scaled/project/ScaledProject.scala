@@ -72,9 +72,9 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
     }
   }
 
-  lazy private val modTestClasspath = Pacman.repo.createLoader(mod, true).classpath
   override protected def dependClasspath (forTest :Boolean) :Seq[Path] =
-    if (forTest) modTestClasspath else mod.loader(Pacman.repo).classpath
+    if (forTest) Pacman.repo.createLoader(mod, true).classpath
+    else mod.loader(Pacman.repo).classpath
 
   // TODO: we want to route through project service to find projects kwown thereto, but that means
   // we have to reimplement the package deps + maven deps + system deps blah blah that pacman does
