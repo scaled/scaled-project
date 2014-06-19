@@ -33,15 +33,18 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
   // note that we don't 'close' our watches, we'll keep them active for the lifetime of the editor
   // because it's low overhead; I may change my mind on this front later, hence this note
 
-  def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
-  def testSourceDirs :Seq[Path] = Seq(root.resolve("src/test"))
-
-  def outputDir :Path = root.resolve("target/classes")
-  def testOutputDir :Path = root.resolve("target/test-classes")
-
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def ids = Seq(toSrcURL(mod.source))
   override def depends = mod.depends.flatMap(toId)
+
+  override def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
+  override def testSourceDirs :Seq[Path] = Seq(root.resolve("src/test"))
+
+  override def outputDir :Path = root.resolve("target/classes")
+  override def testOutputDir :Path = root.resolve("target/test-classes")
+
+  def resourceDir :Path = root.resolve("src/main/resources")
+  def testResourceDir :Path = root.resolve("src/test/resources")
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
 
@@ -53,6 +56,15 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
     override def testSourceDirs = ScaledProject.this.testSourceDirs
     override def testClasspath = ScaledProject.this.testClasspath
     override def testOutputDir = ScaledProject.this.testOutputDir
+
+    override protected def willCompile (tests :Boolean) {
+      if (tests) copyResources(testResourceDir, testOutputDir)
+      else copyResources(resourceDir, outputDir)
+    }
+
+    private def copyResources (rsrcDir :Path, outputDir :Path) {
+      if (Files.exists(rsrcDir)) Filez.copyAll(rsrcDir, outputDir)
+    }
   }
 
   // TODO: handle forTest
