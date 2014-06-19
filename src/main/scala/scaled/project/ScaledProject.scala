@@ -18,8 +18,13 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
   private[this] val _mod = new Close.Ref[Module](toClose) {
     protected def create = {
       val pkg = new Package(pkgFile)
-      if (pkgFile.getParent == root) pkg.module(Module.DEFAULT)
-      else pkg.module(root.getFileName.toString)
+      if (pkgFile.getParent != root) pkg.module(root.getFileName.toString)
+      // if we're in the top-level of a multi-module package, we'll have no module; in that case
+      // we fake up a default module to avoid a bunch of special casery below
+      else Option(pkg.module(Module.DEFAULT)) getOrElse {
+        val cfg = new pacman.Config(java.util.Collections.emptyList[String]())
+        new Module(pkg, Module.DEFAULT, root, pkg.source, cfg)
+      }
     }
   }
   def pkg :Package = mod.pkg
