@@ -40,7 +40,8 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
 
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def ids = Seq(toSrcURL(mod.source))
-  override def depends = mod.depends.flatMap(toId)
+  override def depends = mod.depends.flatMap(toId) :+ platformDepend
+  private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
   override def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
   override def testSourceDirs :Seq[Path] = Seq(root.resolve("src/test"))
