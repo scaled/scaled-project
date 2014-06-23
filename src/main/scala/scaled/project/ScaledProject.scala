@@ -40,7 +40,7 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
 
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def ids = Seq(toSrcURL(mod.source))
-  override def depends = mod.depends.flatMap(toId) :+ platformDepend
+  override def depends = moddeps(false).flatten.map(toId).flatten :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
   override def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
@@ -74,10 +74,11 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
   }
 
   override protected def dependClasspath (forTest :Boolean) :Seq[Path] =
-    if (forTest) Pacman.repo.createLoader(mod, true).classpath
-    else mod.loader(Pacman.repo).classpath
+    moddeps(forTest).dependClasspath
 
-  // TODO: we want to route through project service to find projects kwown thereto, but that means
+  private def moddeps (forTest :Boolean) = mod.depends(Pacman.repo, forTest)
+
+  // TODO: we want to route through project service to find projects known thereto, but that means
   // we have to reimplement the package deps + maven deps + system deps blah blah that pacman does
   // (or factor and complexify it so that we can reuse it)
 
@@ -101,7 +102,7 @@ object ScaledProject {
 
   def toSrcURL (src :Source) = SrcURL(src.vcs.toString, src.url.toString)
 
-  def toId (depend :Depend) :Option[Id] = depend.id match {
+  def toId (id :Depend.Id) :Option[Id] = id match {
     case rid :RepoId => Some(PRepoId(MavenRepo, rid.groupId, rid.artifactId, rid.version))
     case src :Source => Some(toSrcURL(src))
     case _           => None // TODO: SystemId?
