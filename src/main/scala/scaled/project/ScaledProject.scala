@@ -83,7 +83,7 @@ extends AbstractJavaProject(msvc) {
     import java.util.{List => JList, Optional}
     override def moduleBySource (source :Source) = psvc.projectFor(toSrcURL(source)) match {
       case Some(proj :ScaledProject) => Optional.of(proj.mod)
-      case _ => Pacman.repo.moduleBySource(source)
+      case _ => Pacman.repo.resolver.moduleBySource(source)
     }
     override def resolve (ids :JList[RepoId]) = Pacman.repo.resolver.resolve(ids)
     override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
