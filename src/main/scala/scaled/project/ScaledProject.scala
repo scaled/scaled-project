@@ -9,7 +9,8 @@ import scaled._
 import scaled.pacman._
 import scaled.util.Close
 
-class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProject(msvc) {
+class ScaledProject (val root :Path, msvc :MetaService, psvc :ProjectService)
+extends AbstractJavaProject(msvc) {
   import ScaledProject._
   import scala.collection.convert.WrapAsScala._
 
@@ -73,28 +74,21 @@ class ScaledProject (val root :Path, msvc :MetaService) extends AbstractJavaProj
     }
   }
 
-  override protected def dependClasspath (forTest :Boolean) :Seq[Path] =
-    moddeps(forTest).dependClasspath
+  override protected def buildDependClasspath = moddeps(false).dependClasspath
+  override protected def testDependClasspath = moddeps(true).dependClasspath
+  override protected def execDependClasspath = buildDependClasspath
 
-  private def moddeps (forTest :Boolean) = mod.depends(Pacman.repo, forTest)
-
-  // TODO: we want to route through project service to find projects known thereto, but that means
-  // we have to reimplement the package deps + maven deps + system deps blah blah that pacman does
-  // (or factor and complexify it so that we can reuse it)
-
-  //   mod.depends flatMap { dep =>
-  //     toId(dep).flatMap(classpathById) orElse classpathForSysDep(dep)
-  //   }
-
-  // private def classpathById (id :Project.Id) :Option[Path] = projectSvc.projectFor(id) match {
-  //   case Some(proj :JavaProject) => Some(proj.classes)
-  //   case p                       => println(s"What to do? $id -> $p"); None
-  // }
-
-  // private def classpathForSysDep (dep :Depend) :Option[Path] = dep.id match {
-  //   case sysId :SystemId => Some(Pacman.repo.sys.resolve(sysId))
-  //   case _               => None
-  // }
+  private def moddeps (forTest :Boolean) = mod.depends(resolver, forTest)
+  private val resolver = new Depends.Resolver() {
+    import java.util.{List => JList, Optional}
+    override def moduleBySource (source :Source) = psvc.projectFor(toSrcURL(source)) match {
+      case Some(proj :ScaledProject) => Optional.of(proj.mod)
+      case _ => Pacman.repo.moduleBySource(source)
+    }
+    override def resolve (ids :JList[RepoId]) = Pacman.repo.resolver.resolve(ids)
+    override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
+    override def log (msg :String) = msvc.log.log(msg)
+  }
 }
 
 object ScaledProject {
