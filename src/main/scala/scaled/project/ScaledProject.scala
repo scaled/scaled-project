@@ -9,8 +9,7 @@ import scaled._
 import scaled.pacman._
 import scaled.util.Close
 
-class ScaledProject (val root :Path, msvc :MetaService, psvc :ProjectService)
-extends AbstractJavaProject(msvc) {
+class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProject(ps) {
   import ScaledProject._
   import scala.collection.convert.WrapAsScala._
 
@@ -40,6 +39,7 @@ extends AbstractJavaProject(msvc) {
   // because it's low overhead; I may change my mind on this front later, hence this note
 
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
+  override def idName = s"scaled-$name" // TODO: use munged src url?
   override def ids = Seq(toSrcURL(mod.source))
   override def depends = moddeps(false).flatten.map(toId).flatten :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
@@ -81,13 +81,13 @@ extends AbstractJavaProject(msvc) {
   private def moddeps (forTest :Boolean) = mod.depends(resolver, forTest)
   private val resolver = new Depends.Resolver() {
     import java.util.{List => JList, Optional}
-    override def moduleBySource (source :Source) = psvc.projectFor(toSrcURL(source)) match {
+    override def moduleBySource (source :Source) = pspace.projectFor(toSrcURL(source)) match {
       case Some(proj :ScaledProject) => Optional.of(proj.mod)
       case _ => Pacman.repo.resolver.moduleBySource(source)
     }
     override def resolve (ids :JList[RepoId]) = Pacman.repo.resolver.resolve(ids)
     override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
-    override def log (msg :String) = msvc.log.log(msg)
+    override def log (msg :String) = metaSvc.log.log(msg)
   }
 }
 
