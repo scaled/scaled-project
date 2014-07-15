@@ -17,18 +17,21 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   private[this] val modFile = root.resolve("module.scaled") // may not exist
   private[this] val _mod = new Close.Ref[Module](toClose) {
     protected def create = {
-      val pkg = new Package(pkgFile)
-      if (pkgFile.getParent != root) pkg.module(root.getFileName.toString)
+      val pkg = new Package(pkgFile) ; val modname = root.getFileName.toString
+      if (pkgFile.getParent != root) Option(pkg.module(modname)) getOrElse {
+        log.log(s"Error: $pkgFile contains no module declaration for $modFile")
+        new Module(pkg, modname, modFile.getParent, pkg.source, cfg) // fake it!
+      }
       // if we're in the top-level of a multi-module package, we'll have no module; in that case
       // we fake up a default module to avoid a bunch of special casery below
       else Option(pkg.module(Module.DEFAULT)) getOrElse {
-        val cfg = new pacman.Config(java.util.Collections.emptyList[String]())
         new Module(pkg, Module.DEFAULT, root, pkg.source, cfg)
       }
     }
+    private def cfg = new pacman.Config(java.util.Collections.emptyList[String]())
   }
-  def pkg :Package = mod.pkg
   def mod :Module = _mod.get
+  def pkg :Package = mod.pkg
 
   // hibernate if package.scaled (or module.scaled) changes, which will trigger reload
   { val watchSvc = metaSvc.service[WatchService]
