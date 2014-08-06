@@ -47,6 +47,10 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   override def depends = moddeps(false).flatten.map(toId).flatten :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
+  override def warnings = super.warnings ++ moddeps(false).flatten.collect {
+    case md :Depend.MissingId => s"Missing depend: ${md.id}"
+  }
+
   override def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
   override def testSourceDirs :Seq[Path] = Seq(root.resolve("src/test"))
 
@@ -92,7 +96,6 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
     override def isShared (id :RepoId) = Pacman.repo.resolver.isShared(id)
     override def sharedLoader (path :Path) = Pacman.repo.resolver.sharedLoader(path)
-    override def log (msg :String) = metaSvc.log.log(msg)
   }
 }
 
@@ -104,7 +107,7 @@ object ScaledProject {
   def toId (id :Depend.Id) :Option[Id] = id match {
     case rid :RepoId => Some(PRepoId(MavenRepo, rid.groupId, rid.artifactId, rid.version))
     case src :Source => Some(toSrcURL(src))
-    case _           => None // TODO: SystemId?
+    case _           => None // SystemId or MissingId, neither of which we handle here
   }
 
   def findPackage (root :Path, cur :Path) :Path = {
