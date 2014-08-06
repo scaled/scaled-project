@@ -90,6 +90,8 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     }
     override def resolve (ids :JList[RepoId]) = Pacman.repo.resolver.resolve(ids)
     override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
+    override def isShared (id :RepoId) = Pacman.repo.resolver.isShared(id)
+    override def sharedLoader (path :Path) = Pacman.repo.resolver.sharedLoader(path)
     override def log (msg :String) = metaSvc.log.log(msg)
   }
 }
