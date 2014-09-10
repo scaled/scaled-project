@@ -71,6 +71,9 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     override def testClasspath = ScaledProject.this.testClasspath
     override def testOutputDir = ScaledProject.this.testOutputDir
 
+    override def javacOpts = pkg.jcopts
+    override def scalacOpts = pkg.scopts
+
     override protected def willCompile (tests :Boolean) {
       if (tests) copyResources(testResourceDir, testOutputDir)
       else copyResources(resourceDir, outputDir)
