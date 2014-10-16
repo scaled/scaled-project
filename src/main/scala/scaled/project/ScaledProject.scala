@@ -11,7 +11,6 @@ import scaled.util.Close
 
 class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProject(ps) {
   import ScaledProject._
-  import scala.collection.convert.WrapAsScala._
 
   private[this] val pkgFile = findPackage(root, root)
   private[this] val modFile = root.resolve("module.scaled") // may not exist
@@ -28,7 +27,7 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
         new Module(pkg, Module.DEFAULT, root, pkg.source, cfg)
       }
     }
-    private def cfg = new pacman.Config(java.util.Collections.emptyList[String]())
+    private def cfg = new pacman.Config(Seq.empty[String].asJList)
   }
   def mod :Module = _mod.get
   def pkg :Package = mod.pkg
@@ -44,7 +43,7 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def idName = s"scaled-$name" // TODO: use munged src url?
   override def ids = Seq(toSrcURL(mod.source))
-  override def depends = moddeps(false).flatten.map(toId).flatten :+ platformDepend
+  override def depends = moddeps(false).flatten.toSeq.flatMap(toId) :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
   override def warnings = super.warnings ++ moddeps(false).flatten.collect {
@@ -71,8 +70,8 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     override def testClasspath = ScaledProject.this.testClasspath
     override def testOutputDir = ScaledProject.this.testOutputDir
 
-    override def javacOpts = pkg.jcopts
-    override def scalacOpts = pkg.scopts
+    override def javacOpts = pkg.jcopts.toSeq
+    override def scalacOpts = pkg.scopts.toSeq
 
     override protected def willCompile (tests :Boolean) {
       if (tests) copyResources(testResourceDir, testOutputDir)
@@ -84,11 +83,11 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     }
   }
 
-  override protected def buildDependClasspath = moddeps(false).dependClasspath
-  override protected def testDependClasspath = moddeps(true).dependClasspath
+  override protected def buildDependClasspath = moddeps(false).dependClasspath.toSeqV
+  override protected def testDependClasspath = moddeps(true).dependClasspath.toSeqV
   override protected def execDependClasspath = buildDependClasspath
 
-  private def moddeps (forTest :Boolean) = mod.depends(resolver, forTest)
+  private def moddeps (forTest :Boolean) :Depends = mod.depends(resolver, forTest)
   private val resolver = new Depends.Resolver() {
     import java.util.{List => JList, Optional}
     override def moduleBySource (source :Source) = pspace.projectFor(toSrcURL(source)) match {
