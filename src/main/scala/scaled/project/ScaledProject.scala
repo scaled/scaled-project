@@ -87,6 +87,14 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   override protected def testDependClasspath = moddeps(true).dependClasspath.toSeqV
   override protected def execDependClasspath = buildDependClasspath
 
+  // scaled projects don't have a magical test subproject; tests are in a top-level project
+  // (usually a module named tests or test)
+  override protected def createTester () :Tester = new JUnitTester(this) {
+    override def testSourceDirs = sourceDirs
+    override def testOutputDir = outputDir
+    override def testClasspath = buildClasspath
+  }
+
   private def moddeps (forTest :Boolean) :Depends = mod.depends(resolver, forTest)
   private val resolver = new Depends.Resolver() {
     import java.util.{List => JList, Optional}
