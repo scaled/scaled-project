@@ -43,7 +43,8 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def idName = s"scaled-$name" // TODO: use munged src url?
   override def ids = Seq(toSrcURL(mod.source))
-  override def testId = pkg.modules.find(_.name == "test").map(m => toSrcURL(m.source))
+  override def testSeed = pkg.modules.find(_.name == "test").map(
+    m => Project.Seed(m.root, m.name, true, classOf[ScaledProject], Nil))
   override def depends = moddeps.flatten.toSeq.flatMap(toId) :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
