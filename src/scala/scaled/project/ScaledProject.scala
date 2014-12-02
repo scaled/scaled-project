@@ -43,10 +43,10 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
   override def idName = s"scaled-$name" // TODO: use munged src url?
   override def ids = Seq(toSrcURL(mod.source))
-  override def depends = moddeps(false).flatten.toSeq.flatMap(toId) :+ platformDepend
+  override def depends = moddeps.flatten.toSeq.flatMap(toId) :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
-  override def warnings = super.warnings ++ moddeps(false).flatten.collect {
+  override def warnings = super.warnings ++ moddeps.flatten.collect {
     case md :Depend.MissingId => s"Missing depend: ${md.id}"
   }
 
@@ -83,8 +83,8 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     }
   }
 
-  override protected def buildDependClasspath = moddeps(false).dependClasspath.toSeqV
-  override protected def testDependClasspath = moddeps(true).dependClasspath.toSeqV
+  override protected def buildDependClasspath = moddeps.dependClasspath.toSeqV
+  override protected def testDependClasspath = Seq()
   override protected def execDependClasspath = buildDependClasspath
 
   // scaled projects don't have a magical test subproject; tests are in a top-level project
@@ -95,7 +95,7 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     override def testClasspath = buildClasspath
   }
 
-  private def moddeps (forTest :Boolean) :Depends = mod.depends(resolver, forTest)
+  private def moddeps :Depends = mod.depends(resolver)
   private val resolver = new Depends.Resolver() {
     import java.util.{List => JList, Optional}
     override def moduleBySource (source :Source) = pspace.projectFor(toSrcURL(source)) match {
