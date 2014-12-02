@@ -9,26 +9,28 @@ import scaled._
 import scaled.pacman._
 import scaled.util.Close
 
-class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProject(ps) {
+class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJavaProject(ps) {
   import ScaledProject._
 
-  private[this] val pkgFile = findPackage(root, root)
-  private[this] val modFile = root.resolve("module.scaled") // may not exist
+  private[this] val pkgFile = findPackage(rootPath, rootPath)
+  private[this] val modFile = rootPath.resolve("module.scaled") // may not exist
   private[this] val _mod = new Close.Ref[Module](toClose) {
     protected def create = {
-      val pkg = new Package(pkgFile) ; val modname = root.getFileName.toString
-      if (pkgFile.getParent != root) Option(pkg.module(modname)) getOrElse {
+      val pkg = new Package(pkgFile) ; val modname = rootPath.getFileName.toString
+      if (pkgFile.getParent != rootPath) Option(pkg.module(modname)) getOrElse {
         log.log(s"Error: $pkgFile contains no module declaration for $modFile")
         new Module(pkg, modname, modFile.getParent, pkg.source, cfg) // fake it!
       }
       // if we're in the top-level of a multi-module package, we'll have no module; in that case
       // we fake up a default module to avoid a bunch of special casery below
       else Option(pkg.module(Module.DEFAULT)) getOrElse {
-        new Module(pkg, Module.DEFAULT, root, pkg.source, cfg)
+        new Module(pkg, Module.DEFAULT, rootPath, pkg.source, cfg)
       }
     }
     private def cfg = new pacman.Config(Seq.empty[String].asJList)
   }
+
+  private def rootPath = root.path
   def mod :Module = _mod.get
   def pkg :Package = mod.pkg
 
@@ -44,7 +46,7 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
   override def idName = s"scaled-$name" // TODO: use munged src url?
   override def ids = Seq(toSrcURL(mod.source))
   override def testSeed = pkg.modules.find(_.name == "test").map(
-    m => Project.Seed(m.root, m.name, true, classOf[ScaledProject], List(m.root)))
+    m => Project.Seed(Project.Root(m.root, false), m.name, true, getClass, List(m.root)))
   override def depends = moddeps.flatten.toSeq.flatMap(toId) :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
 
@@ -52,14 +54,10 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     case md :Depend.MissingId => s"Missing depend: ${md.id}"
   }
 
-  override def sourceDirs :Seq[Path] = Seq(root.resolve("src"))
-  override def testSourceDirs :Seq[Path] = Seq()
+  override def sourceDirs :Seq[Path] = Seq(rootPath.resolve("src"))
+  override def outputDir :Path = rootPath.resolve("target/classes")
 
-  override def outputDir :Path = root.resolve("target/classes")
-  override def testOutputDir :Path = root.resolve("target/test-classes")
-
-  def resourceDir :Path = root.resolve("src/main/resources")
-  def testResourceDir :Path = root.resolve("src/test/resources")
+  def resourceDir :Path = rootPath.resolve("src/main/resources")
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
 
@@ -68,25 +66,16 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     override def sourceDirs = ScaledProject.this.sourceDirs
     override def buildClasspath = ScaledProject.this.buildClasspath
     override def outputDir = ScaledProject.this.outputDir
-    override def testSourceDirs = ScaledProject.this.testSourceDirs
-    override def testClasspath = ScaledProject.this.testClasspath
-    override def testOutputDir = ScaledProject.this.testOutputDir
 
     override def javacOpts = pkg.jcopts.toSeq
     override def scalacOpts = pkg.scopts.toSeq
 
-    override protected def willCompile (tests :Boolean) {
-      if (tests) copyResources(testResourceDir, testOutputDir)
-      else copyResources(resourceDir, outputDir)
-    }
-
-    private def copyResources (rsrcDir :Path, outputDir :Path) {
-      if (Files.exists(rsrcDir)) Filez.copyAll(rsrcDir, outputDir)
+    override protected def willCompile () {
+      if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
     }
   }
 
   override protected def buildDependClasspath = moddeps.dependClasspath.toSeqV
-  override protected def testDependClasspath = Seq()
   override protected def execDependClasspath = buildDependClasspath
 
   // scaled projects don't have a magical test subproject; tests are in a top-level project
