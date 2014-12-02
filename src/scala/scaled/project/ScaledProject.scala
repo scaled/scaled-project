@@ -50,8 +50,8 @@ class ScaledProject (val root :Path, ps :ProjectSpace) extends AbstractJavaProje
     case md :Depend.MissingId => s"Missing depend: ${md.id}"
   }
 
-  override def sourceDirs :Seq[Path] = Seq(root.resolve("src/main"))
-  override def testSourceDirs :Seq[Path] = Seq(root.resolve("src/test"))
+  override def sourceDirs :Seq[Path] = Seq(root.resolve("src"))
+  override def testSourceDirs :Seq[Path] = Seq()
 
   override def outputDir :Path = root.resolve("target/classes")
   override def testOutputDir :Path = root.resolve("target/test-classes")
