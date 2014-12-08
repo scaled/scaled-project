@@ -60,7 +60,7 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
   override def sourceDirs :Seq[Path] = Seq(rootPath.resolve("src"))
   override def outputDir :Path = rootPath.resolve("target/classes")
 
-  def resourceDir :Path = rootPath.resolve("src/main/resources")
+  def resourceDir :Path = rootPath.resolve("src/resources")
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
 
