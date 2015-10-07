@@ -94,7 +94,11 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
     import java.util.{List => JList, Optional}
     override def moduleBySource (source :Source) = pspace.projectFor(toSrcURL(source)) match {
       case Some(proj :ScaledProject) => Optional.of(proj.mod)
-      case _ => Pacman.repo.resolver.moduleBySource(source)
+      case _ =>
+        // if this depend is our parent or sibling, we have its module already
+        if (source == pkg.source) Optional.ofNullable(pkg.module(Module.DEFAULT))
+        else if (source.packageSource == pkg.source) Optional.ofNullable(pkg.module(source.module))
+        else Pacman.repo.resolver.moduleBySource(source)
     }
     override def resolve (ids :JList[RepoId]) = Pacman.repo.resolver.resolve(ids)
     override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
