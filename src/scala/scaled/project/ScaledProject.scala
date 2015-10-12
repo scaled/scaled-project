@@ -102,8 +102,8 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
     }
     override def resolve (ids :JList[RepoId]) = Pacman.repo.resolver.resolve(ids)
     override def resolve (id :SystemId) = Pacman.repo.resolver.resolve(id)
-    override def isShared (id :RepoId) = Pacman.repo.resolver.isShared(id)
-    override def sharedLoader (path :Path) = Pacman.repo.resolver.sharedLoader(path)
+    override def isSystem (id :RepoId) = Pacman.repo.resolver.isSystem(id)
+    override def systemLoader (path :Path) = Pacman.repo.resolver.systemLoader(path)
   }
 }
 
