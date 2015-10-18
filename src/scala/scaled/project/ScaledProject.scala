@@ -8,6 +8,7 @@ import java.nio.file.{Files, Path}
 import scaled._
 import scaled.pacman._
 import scaled.util.Close
+import scaled.util.BufferBuilder
 
 class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJavaProject(ps) {
   import ScaledProject._
@@ -64,6 +65,15 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
 
+  override protected def describeBuild (bb :BufferBuilder) {
+    super.describeBuild(bb)
+
+    bb.addSection("Compiler options:")
+    bb.addKeyValue("javac: ", pkg.jcopts.mkString(" "))
+    bb.addKeyValue("scalac: ", pkg.scopts.mkString(" "))
+    bb.addKeyValue("scvers: ", scalacVers)
+  }
+
   // TODO: use summarizeSources to determine whether to use a Java or Scala compiler
   override protected def createCompiler () = new ScalaCompiler(this) {
     override def sourceDirs = ScaledProject.this.sourceDirs
@@ -72,6 +82,7 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
 
     override def javacOpts = pkg.jcopts.toSeq
     override def scalacOpts = pkg.scopts.toSeq
+    override def scalacVers = ScaledProject.this.scalacVers
 
     override protected def willCompile () {
       if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
@@ -88,6 +99,10 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
     override def testOutputDir = outputDir
     override def testClasspath = buildClasspath
   }
+
+  private def scalacVers :String = (depends collectFirst {
+    case Project.RepoId(_, "org.scala-lang", "scala-library", version) => version
+  }) getOrElse ScalaCompiler.DefaultScalacVersion
 
   private def moddeps :Depends = mod.depends(resolver)
   private val resolver = new Depends.Resolver() {
