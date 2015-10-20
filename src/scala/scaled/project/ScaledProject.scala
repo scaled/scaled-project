@@ -10,7 +10,8 @@ import scaled.pacman._
 import scaled.util.Close
 import scaled.util.BufferBuilder
 
-class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJavaProject(ps) {
+class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJavaProject(ps)
+    with ScalaProject {
   import ScaledProject._
 
   private[this] val pkgFile = findPackage(rootPath, rootPath)
@@ -61,6 +62,8 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
   override def sourceDirs :Seq[Path] = Seq(rootPath.resolve("src"))
   override def outputDir :Path = rootPath.resolve("target/classes")
 
+  override def scalacOpts = pkg.scopts.toSeq
+
   def resourceDir :Path = rootPath.resolve("src/resources")
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
@@ -81,7 +84,7 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
     override def outputDir = ScaledProject.this.outputDir
 
     override def javacOpts = pkg.jcopts.toSeq
-    override def scalacOpts = pkg.scopts.toSeq
+    override def scalacOpts = ScaledProject.this.scalacOpts
     override def scalacVers = ScaledProject.this.scalacVers
 
     override protected def willCompile () {
