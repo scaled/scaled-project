@@ -8,4 +8,5 @@ license: New BSD
  depend: git:https://github.com/scaled/pacman.git
  depend: git:https://github.com/scaled/java-project.git
  depend: git:https://github.com/scaled/scala-project.git
+ depend: git:https://github.com/scaled/kotlin-project.git
 execdep: git:https://github.com/scaled/scala-compiler.git

@@ -64,6 +64,9 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
 
   override def scalacOpts = pkg.scopts.toSeq
 
+  def kotlincOpts :Seq[String] = Seq()
+  // def kotlincVers :Seq[String] = "" TODO
+
   def resourceDir :Path = rootPath.resolve("src/resources")
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
@@ -78,17 +81,39 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
   }
 
   // TODO: use summarizeSources to determine whether to use a Java or Scala compiler
-  override protected def createCompiler () = new ScalaCompiler(this) {
-    override def sourceDirs = ScaledProject.this.sourceDirs
-    override def buildClasspath = ScaledProject.this.buildClasspath
-    override def outputDir = ScaledProject.this.outputDir
+  override protected def createCompiler () = {
+    val ssum = summarizeSources
 
-    override def javacOpts = pkg.jcopts.toSeq
-    override def scalacOpts = ScaledProject.this.scalacOpts
-    override def scalacVers = ScaledProject.this.scalacVers
+    // TODO: do we want to try to support multi-lingual projects? that sounds like a giant PITA,
+    // but we could probably at least generate a warning if we have some crazy mishmash of sources
 
-    override protected def willCompile () {
-      if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
+    // TEMP: if we have any Kotlin files, we just use the KotlinCompiler
+    if (ssum.contains("kt")) new KotlinCompiler(this) {
+      // TODO: this is a lot of annoying duplication...
+      override def sourceDirs = ScaledProject.this.sourceDirs
+      override def buildClasspath = ScaledProject.this.buildClasspath
+      override def outputDir = ScaledProject.this.outputDir
+
+      override def javacOpts = pkg.jcopts.toSeq
+      override def kotlincOpts = ScaledProject.this.kotlincOpts
+      // override def kotlincVers = ScaledProject.this.kotlincVers
+
+      override protected def willCompile () {
+        if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
+      }
+
+    } else new ScalaCompiler(this) {
+      override def sourceDirs = ScaledProject.this.sourceDirs
+      override def buildClasspath = ScaledProject.this.buildClasspath
+      override def outputDir = ScaledProject.this.outputDir
+
+      override def javacOpts = pkg.jcopts.toSeq
+      override def scalacOpts = ScaledProject.this.scalacOpts
+      override def scalacVers = ScaledProject.this.scalacVers
+
+      override protected def willCompile () {
+        if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
+      }
     }
   }
 
