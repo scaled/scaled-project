@@ -4,11 +4,11 @@
 
 package scaled.project
 
+import codex.extract.SourceSet
 import java.nio.file.{Files, Path}
 import scaled._
 import scaled.pacman._
-import scaled.util.Close
-import scaled.util.BufferBuilder
+import scaled.util.{BufferBuilder, Close}
 
 class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJavaProject(ps)
     with ScalaProject {
@@ -64,23 +64,10 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
 
   override def scalacOpts = pkg.scopts.toSeq
 
-  def kotlincOpts :Seq[String] = Seq()
-  // def kotlincVers :Seq[String] = "" TODO
-
   def resourceDir :Path = rootPath.resolve("src/resources")
 
   override protected def ignores = FileProject.stockIgnores ++ Set("target")
 
-  override protected def describeBuild (bb :BufferBuilder) {
-    super.describeBuild(bb)
-
-    bb.addSection("Compiler options:")
-    bb.addKeyValue("javac: ", pkg.jcopts.mkString(" "))
-    bb.addKeyValue("scalac: ", pkg.scopts.mkString(" "))
-    bb.addKeyValue("scvers: ", scalacVers)
-  }
-
-  // TODO: use summarizeSources to determine whether to use a Java or Scala compiler
   override protected def createCompiler () = {
     val ssum = summarizeSources
 
@@ -131,6 +118,9 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
   private def scalacVers :String = (depends collectFirst {
     case Project.RepoId(_, "org.scala-lang", "scala-library", version) => version
   }) getOrElse ScalaCompiler.DefaultScalacVersion
+
+  private def kotlincOpts :Seq[String] = Seq()
+  // private def kotlincVers :Seq[String] = "" TODO
 
   private def moddeps :Depends = mod.depends(resolver)
   private val resolver = new Depends.Resolver() {
