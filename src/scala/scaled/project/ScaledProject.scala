@@ -66,7 +66,8 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
 
   def resourceDir :Path = rootPath.resolve("src/resources")
 
-  override protected def ignores = FileProject.stockIgnores ++ Set("target")
+  override protected def ignores = FileProject.stockIgnores ++
+    Seq(FileProject.ignoreName("target"))
 
   override protected def createCompiler () = {
     val ssum = summarizeSources
