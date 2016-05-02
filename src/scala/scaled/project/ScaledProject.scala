@@ -10,8 +10,7 @@ import scaled._
 import scaled.pacman._
 import scaled.util.{BufferBuilder, Close}
 
-class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractJavaProject(ps, r)
-    with ScalaProject {
+class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProject(ps, r) {
   import ScaledProject._
 
   private def rootPath = root.path
@@ -45,18 +44,55 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractJavaProj
     }
     modV() = mod
 
+    // add our JavaComponent
+    val java = new JavaComponent(this)
+    addComponent(classOf[JavaComponent], java)
+    val targetDir = rootPath.resolve("target")
+    val classesDir = targetDir.resolve("classes")
+    val classpath = classesDir +: moddeps.dependClasspath.toSeqV
+    java.javaMetaV() = java.javaMetaV().copy(
+      classes = Seq(classesDir),
+      outputDir = classesDir,
+      buildClasspath = classpath,
+      execClasspath = classpath
+    )
+    java.addTesters()
+
+    // add dirs to our ignores
+    val igns = FileProject.stockIgnores
+    igns += FileProject.ignorePath(targetDir)
+    ignores() = igns
+
+    // TODO: this is expensive, can we do something cheaper
+    val ssum = summarizeSources
+    // TODO: do we want to try to support multi-lingual projects? that sounds like a giant PITA,
+    // but we could probably at least generate a warning if we have some crazy mishmash of sources
+    // TEMP: if we have any Kotlin files, we just use the KotlinCompiler
+    if (ssum.contains("kt")) {
+      addComponent(classOf[Compiler], new KotlinCompiler(this, java) {
+        override def javacOpts = pkg.jcopts.toSeq
+        override def kotlincOpts = ScaledProject.this.kotlincOpts
+        // override def kotlincVers = ScaledProject.this.kotlincVers
+        override protected def willCompile () {
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, java.outputDir)
+        }
+      })
+
+    } else {
+      addComponent(classOf[Compiler], new ScalaCompiler(this, java) {
+        override def javacOpts = pkg.jcopts.toSeq
+        override def scalacOpts = pkg.scopts.toSeq
+        override def scalacVers = ScaledProject.this.scalacVers
+        override protected def willCompile () {
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, java.outputDir)
+        }
+      })
+    }
+
     metaV() = metaV().copy(
       name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}",
       ids = Seq(toSrcURL(mod.source)),
       sourceDirs = Seq(rootPath.resolve("src"))
-    )
-
-    val classesDir = rootPath.resolve("target/classes")
-    javaMetaV() = javaMetaV().copy(
-      classes = Seq(classesDir),
-      outputDir = classesDir,
-      buildClasspath = classesDir +: moddeps.dependClasspath.toSeqV
-      // we override execClasspath to be the same as build
     )
   }
 
@@ -72,57 +108,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractJavaProj
     case md :Depend.MissingId => s"Missing depend: ${md.id}"
   }
 
-  override def execClasspath = buildClasspath
-  override def scalacOpts = pkg.scopts.toSeq
-
   def resourceDir :Path = rootPath.resolve("src/resources")
-
-  override protected def ignores = FileProject.stockIgnores ++
-    Seq(FileProject.ignoreName("target"))
-
-  override protected def createCompiler () = {
-    val ssum = summarizeSources
-
-    // TODO: do we want to try to support multi-lingual projects? that sounds like a giant PITA,
-    // but we could probably at least generate a warning if we have some crazy mishmash of sources
-
-    // TEMP: if we have any Kotlin files, we just use the KotlinCompiler
-    if (ssum.contains("kt")) new KotlinCompiler(this) {
-      // TODO: this is a lot of annoying duplication...
-      override def sourceDirs = ScaledProject.this.sourceDirs
-      override def buildClasspath = ScaledProject.this.buildClasspath
-      override def outputDir = ScaledProject.this.outputDir
-
-      override def javacOpts = pkg.jcopts.toSeq
-      override def kotlincOpts = ScaledProject.this.kotlincOpts
-      // override def kotlincVers = ScaledProject.this.kotlincVers
-
-      override protected def willCompile () {
-        if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
-      }
-
-    } else new ScalaCompiler(this) {
-      override def sourceDirs = ScaledProject.this.sourceDirs
-      override def buildClasspath = ScaledProject.this.buildClasspath
-      override def outputDir = ScaledProject.this.outputDir
-
-      override def javacOpts = pkg.jcopts.toSeq
-      override def scalacOpts = ScaledProject.this.scalacOpts
-      override def scalacVers = ScaledProject.this.scalacVers
-
-      override protected def willCompile () {
-        if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, outputDir)
-      }
-    }
-  }
-
-  // scaled projects don't have a magical test subproject; tests are in a top-level project
-  // (usually a module named tests or test)
-  override protected def createTester () :Tester = new JUnitTester(this) {
-    override def testSourceDirs = sourceDirs
-    override def testOutputDir = outputDir
-    override def testClasspath = buildClasspath
-  }
 
   private def scalacVers :String = (depends collectFirst {
     case Project.RepoId(_, "org.scala-lang", "scala-library", version) => version
