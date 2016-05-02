@@ -10,43 +10,56 @@ import scaled._
 import scaled.pacman._
 import scaled.util.{BufferBuilder, Close}
 
-class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJavaProject(ps)
+class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractJavaProject(ps, r)
     with ScalaProject {
   import ScaledProject._
 
+  private def rootPath = root.path
   private[this] val pkgFile = findPackage(rootPath, rootPath)
   private[this] val modFile = rootPath.resolve("module.scaled") // may not exist
-  private[this] val _mod = new Close.Ref[Module](toClose) {
-    protected def create = {
-      val pkg = new Package(pkgFile) ; val modname = rootPath.getFileName.toString
-      if (pkgFile.getParent != rootPath) Option(pkg.module(modname)) getOrElse {
-        log.log(s"Error: $pkgFile contains no module declaration for $modFile")
-        new Module(pkg, modname, modFile.getParent, pkg.source, cfg) // fake it!
-      }
-      // if we're in the top-level of a multi-module package, we'll have no module; in that case
-      // we fake up a default module to avoid a bunch of special casery below
-      else Option(pkg.module(Module.DEFAULT)) getOrElse {
-        new Module(pkg, Module.DEFAULT, rootPath, pkg.source, cfg)
-      }
-    }
-    private def cfg = new pacman.Config(Seq.empty[String].asJList)
-  }
+  private[this] val modV = Value[Module](null)
 
-  private def rootPath = root.path
-  def mod :Module = _mod.get
+  def mod :Module = modV()
   def pkg :Package = mod.pkg
 
-  // hibernate if package.scaled (or module.scaled) changes, which will trigger reload
+  // reinit if package.scaled (or module.scaled) changes
   { val watchSvc = metaSvc.service[WatchService]
     watchSvc.watchFile(pkgFile, file => hibernate())
-    if (Files.exists(modFile)) watchSvc.watchFile(modFile, file => hibernate())
+    if (Files.exists(modFile)) watchSvc.watchFile(modFile, file => init())
   }
   // note that we don't 'close' our watches, we'll keep them active for the lifetime of the editor
   // because it's low overhead; I may change my mind on this front later, hence this note
 
-  override def name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}"
-  override def idName = s"scaled-$name" // TODO: use munged src url?
-  override def ids = Seq(toSrcURL(mod.source))
+  // TODO: do all this resolution on a background thread?
+  override def init () {
+    val pkg = new Package(pkgFile) ; val modName = rootPath.getFileName.toString
+    val cfg = new pacman.Config(Seq.empty[String].asJList)
+    val mod = if (pkgFile.getParent != rootPath) Option(pkg.module(modName)) getOrElse {
+      log.log(s"Error: $pkgFile contains no module declaration for $modFile")
+      new Module(pkg, modName, modFile.getParent, pkg.source, cfg) // fake it!
+    }
+    // if we're in the top-level of a multi-module package, we'll have no module; in that case we
+    // fake up a default module to avoid a bunch of special casery below
+    else Option(pkg.module(Module.DEFAULT)) getOrElse {
+      new Module(pkg, Module.DEFAULT, rootPath, pkg.source, cfg)
+    }
+    modV() = mod
+
+    metaV() = metaV().copy(
+      name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}",
+      ids = Seq(toSrcURL(mod.source)),
+      sourceDirs = Seq(rootPath.resolve("src"))
+    )
+
+    val classesDir = rootPath.resolve("target/classes")
+    javaMetaV() = javaMetaV().copy(
+      classes = Seq(classesDir),
+      outputDir = classesDir,
+      buildClasspath = classesDir +: moddeps.dependClasspath.toSeqV
+      // we override execClasspath to be the same as build
+    )
+  }
+
   override def testSeed =
     if (mod.name == "test") None
     else pkg.modules.find(_.name == "test").map(m => {
@@ -59,9 +72,7 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
     case md :Depend.MissingId => s"Missing depend: ${md.id}"
   }
 
-  override def sourceDirs :Seq[Path] = Seq(rootPath.resolve("src"))
-  override def outputDir :Path = rootPath.resolve("target/classes")
-
+  override def execClasspath = buildClasspath
   override def scalacOpts = pkg.scopts.toSeq
 
   def resourceDir :Path = rootPath.resolve("src/resources")
@@ -104,9 +115,6 @@ class ScaledProject (val root :Project.Root, ps :ProjectSpace) extends AbstractJ
       }
     }
   }
-
-  override protected def buildDependClasspath = moddeps.dependClasspath.toSeqV
-  override protected def execDependClasspath = buildDependClasspath
 
   // scaled projects don't have a magical test subproject; tests are in a top-level project
   // (usually a module named tests or test)
