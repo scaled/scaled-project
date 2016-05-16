@@ -120,7 +120,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
   private def moddeps :Depends = mod.depends(resolver)
   private val resolver = new Depends.Resolver() {
     import java.util.{List => JList, Optional}
-    override def moduleBySource (source :Source) = pspace.projectFor(toSrcURL(source)) match {
+    override def moduleBySource (source :Source) = pspace.knownProjectFor(toSrcURL(source)) match {
       case Some(proj :ScaledProject) => Optional.of(proj.mod)
       case _ =>
         // if this depend is our parent or sibling, we have its module already
