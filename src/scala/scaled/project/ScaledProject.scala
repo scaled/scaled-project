@@ -26,7 +26,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
 
   // reinit if package.scaled (or module.scaled) changes
   { val watchSvc = metaSvc.service[WatchService]
-    watchSvc.watchFile(pkgFile, file => hibernate())
+    watchSvc.watchFile(pkgFile, file => init())
     if (Files.exists(modFile)) watchSvc.watchFile(modFile, file => init())
   }
   // note that we don't 'close' our watches, we'll keep them active for the lifetime of the editor
