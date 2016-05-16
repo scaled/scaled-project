@@ -18,6 +18,9 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
   private[this] val modFile = rootPath.resolve("module.scaled") // may not exist
   private[this] val modV = Value[Module](null)
 
+  private val javaComp = new JavaComponent(this)
+  addComponent(classOf[JavaComponent], javaComp)
+
   def mod :Module = modV()
   def pkg :Package = mod.pkg
 
@@ -44,19 +47,17 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
     }
     modV() = mod
 
-    // add our JavaComponent
-    val java = new JavaComponent(this)
-    addComponent(classOf[JavaComponent], java)
+    // init our JavaComponent
     val targetDir = rootPath.resolve("target")
     val classesDir = targetDir.resolve("classes")
     val classpath = classesDir +: moddeps.dependClasspath.toSeqV
-    java.javaMetaV() = java.javaMetaV().copy(
+    javaComp.javaMetaV() = javaComp.javaMetaV().copy(
       classes = Seq(classesDir),
       outputDir = classesDir,
       buildClasspath = classpath,
       execClasspath = classpath
     )
-    java.addTesters()
+    javaComp.addTesters()
 
     // add dirs to our ignores
     val igns = FileProject.stockIgnores
@@ -69,22 +70,22 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
     // but we could probably at least generate a warning if we have some crazy mishmash of sources
     // TEMP: if we have any Kotlin files, we just use the KotlinCompiler
     if (ssum.contains("kt")) {
-      addComponent(classOf[Compiler], new KotlinCompiler(this, java) {
+      addComponent(classOf[Compiler], new KotlinCompiler(this, javaComp) {
         override def javacOpts = pkg.jcopts.toSeq
         override def kotlincOpts = ScaledProject.this.kotlincOpts
         // override def kotlincVers = ScaledProject.this.kotlincVers
         override protected def willCompile () {
-          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, java.outputDir)
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, javaComp.outputDir)
         }
       })
 
     } else {
-      addComponent(classOf[Compiler], new ScalaCompiler(this, java) {
+      addComponent(classOf[Compiler], new ScalaCompiler(this, javaComp) {
         override def javacOpts = pkg.jcopts.toSeq
         override def scalacOpts = pkg.scopts.toSeq
         override def scalacVers = ScaledProject.this.scalacVers
         override protected def willCompile () {
-          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, java.outputDir)
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, javaComp.outputDir)
         }
       })
     }
