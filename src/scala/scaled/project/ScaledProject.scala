@@ -33,7 +33,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
   // because it's low overhead; I may change my mind on this front later, hence this note
 
   // TODO: do all this resolution on a background thread?
-  override def init () {
+  override protected def computeMeta (oldMeta :Project.Meta) = {
     val pkg = new Package(pkgFile) ; val modName = rootPath.getFileName.toString
     val cfg = new pacman.Config(Seq.empty[String].asJList)
     val mod = if (pkgFile.getParent != rootPath) Option(pkg.module(modName)) getOrElse {
@@ -90,11 +90,11 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
       })
     }
 
-    metaV() = metaV().copy(
+    Future.success(oldMeta.copy(
       name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}",
       ids = Seq(toSrcURL(mod.source)),
       sourceDirs = Seq(rootPath.resolve("src"))
-    )
+    ))
   }
 
   override def testSeed =
