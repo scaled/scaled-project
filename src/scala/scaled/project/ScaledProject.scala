@@ -100,7 +100,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
   override def testSeed =
     if (mod.name == "test") None
     else pkg.modules.find(_.name == "test").map(m => {
-      val troot = Project.Root(m.root, false) // Scaled projects don't use testMode
+      val troot = Project.Root(m.root)
       Project.Seed(troot, m.name, true, getClass, List(troot)) })
   override def depends = moddeps.flatten.toSeq.flatMap(toId) :+ platformDepend
   private def platformDepend = Project.PlatformId(Project.JavaPlatform, JDK.thisJDK.majorVersion)
