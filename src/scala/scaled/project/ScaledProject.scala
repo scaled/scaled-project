@@ -61,7 +61,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
 
     // add dirs to our ignores
     val igns = FileProject.stockIgnores
-    igns += FileProject.ignorePath(targetDir)
+    igns += FileProject.ignorePath(targetDir, root.path)
     ignores() = igns
 
     // TODO: this is expensive, can we do something cheaper
