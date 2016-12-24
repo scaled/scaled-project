@@ -26,11 +26,9 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
 
   // reinit if package.scaled (or module.scaled) changes
   { val watchSvc = metaSvc.service[WatchService]
-    watchSvc.watchFile(pkgFile, file => init())
-    if (Files.exists(modFile)) watchSvc.watchFile(modFile, file => init())
+    toClose += watchSvc.watchFile(pkgFile, file => reinit())
+    if (Files.exists(modFile)) toClose += watchSvc.watchFile(modFile, file => reinit())
   }
-  // note that we don't 'close' our watches, we'll keep them active for the lifetime of the editor
-  // because it's low overhead; I may change my mind on this front later, hence this note
 
   // TODO: do all this resolution on a background thread?
   override protected def computeMeta (oldMeta :Project.Meta) = {
