@@ -49,12 +49,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
     val targetDir = rootPath.resolve("target")
     val classesDir = targetDir.resolve("classes")
     val classpath = classesDir +: moddeps.dependClasspath.toSeqV
-    javaComp.javaMetaV() = javaComp.javaMetaV().copy(
-      classes = Seq(classesDir),
-      outputDir = classesDir,
-      buildClasspath = classpath,
-      execClasspath = classpath
-    )
+    javaComp.javaMetaV() = new JavaMeta(Seq(classesDir), classesDir, classpath, classpath)
     javaComp.addTesters()
 
     // add dirs to our ignores
