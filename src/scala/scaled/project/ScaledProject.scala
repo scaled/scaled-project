@@ -65,8 +65,9 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
     if (ssum.contains("kt")) {
       addComponent(classOf[Compiler], new KotlinCompiler(this, javaComp) {
         override def javacOpts = pkg.jcopts.toSeq
-        override def kotlincOpts = ScaledProject.this.kotlincOpts
-        // override def kotlincVers = ScaledProject.this.kotlincVers
+        // override def kotlincOpts = pkg.kcopts.toSeq
+        override def kotlincVers = artifactVers(
+          "org.jetbrains.kotlin", "kotlin-stdlib", super.kotlincVers)
         override protected def willCompile () {
           if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, javaComp.outputDir)
         }
@@ -76,7 +77,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
       addComponent(classOf[Compiler], new ScalaCompiler(this, javaComp) {
         override def javacOpts = pkg.jcopts.toSeq
         override def scalacOpts = pkg.scopts.toSeq
-        override def scalacVers = ScaledProject.this.scalacVers
+        override def scalacVers = artifactVers("org.scala-lang", "scala-library", super.scalacVers)
         override protected def willCompile () {
           if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, javaComp.outputDir)
         }
@@ -104,12 +105,10 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
 
   def resourceDir :Path = rootPath.resolve("src/resources")
 
-  private def scalacVers :String = (depends collectFirst {
-    case Project.RepoId(_, "org.scala-lang", "scala-library", version) => version
-  }) getOrElse ScalaCompiler.DefaultScalacVersion
-
-  private def kotlincOpts :Seq[String] = Seq()
-  // private def kotlincVers :Seq[String] = "" TODO
+  private def artifactVers (groupId :String, artifactId :String, defvers :String) =
+    (depends collectFirst {
+      case Project.RepoId(_, gid, aid, vers) if (gid == groupId && aid == artifactId) => vers
+    }) getOrElse defvers
 
   private def moddeps :Depends = mod.depends(resolver)
   private val resolver = new Depends.Resolver() {
