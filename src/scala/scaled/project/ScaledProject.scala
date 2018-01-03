@@ -10,7 +10,7 @@ import scaled._
 import scaled.pacman._
 import scaled.util.{BufferBuilder, Close}
 
-class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProject(ps, r) {
+class ScaledProject (ps :ProjectSpace, r :Project.Root) extends Project(ps, r) {
   import ScaledProject._
 
   private def rootPath = root.path
@@ -52,13 +52,17 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
     javaComp.javaMetaV() = new JavaMeta(Seq(classesDir), classesDir, classpath, classpath)
     javaComp.addTesters()
 
-    // add dirs to our ignores
-    val igns = FileProject.stockIgnores
-    igns += FileProject.ignorePath(targetDir, root.path)
-    ignores() = igns
+    // add a filer component with custom ignores
+    val igns = Ignorer.stockIgnores
+    igns += Ignorer.ignorePath(targetDir, root.path)
+    addComponent(classOf[Filer], new DirectoryFiler(root.path, exec, igns))
+
+    // add a sources component with our source directories
+    val sources = new Sources(Seq(rootPath.resolve("src")))
+    addComponent(classOf[Sources], sources)
 
     // TODO: this is expensive, can we do something cheaper
-    val ssum = summarizeSources
+    val ssum = sources.summarize
     // TODO: do we want to try to support multi-lingual projects? that sounds like a giant PITA,
     // but we could probably at least generate a warning if we have some crazy mishmash of sources
     // TEMP: if we have any Kotlin files, we just use the KotlinCompiler
@@ -86,8 +90,7 @@ class ScaledProject (ps :ProjectSpace, r :Project.Root) extends AbstractFileProj
 
     Future.success(oldMeta.copy(
       name = if (mod.isDefault) pkg.name else s"${pkg.name}-${mod.name}",
-      ids = Seq(toSrcURL(mod.source)),
-      sourceDirs = Seq(rootPath.resolve("src"))
+      ids = Seq(toSrcURL(mod.source))
     ))
   }
 
