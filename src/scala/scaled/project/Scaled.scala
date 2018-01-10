@@ -19,12 +19,6 @@ object Scaled {
     case _           => None // SystemId or MissingId, neither of which we handle here
   }
 
-  def findPackage (root :Path, cur :Path) :Path = {
-    if (cur == null) throw new IllegalArgumentException("Unable to find 'package.scaled' in root.")
-    val pfile = cur.resolve("package.scaled");
-    if (Files.exists(pfile)) pfile else findPackage(root, cur.getParent)
-  }
-
   def isScaledRoot (root :Path) =
     Files.exists(root.resolve("package.scaled")) ||
     Files.exists(root.resolve("module.scaled"))
