@@ -24,7 +24,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
   }
 
   override def metaFiles (root :Project.Root) =
-    Seq(root.path.resolve("module.scaled"), findPackage(root.path, root.path))
+    Seq("package.scaled", "module.scaled").map(root.path.resolve)
 
   override def addComponents (project :Project) {
     val rootPath = project.root.path
