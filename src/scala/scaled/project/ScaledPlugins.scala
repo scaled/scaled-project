@@ -66,7 +66,8 @@ class ScaledResolverPlugin extends ResolverPlugin {
 
     // init our JavaComponent
     val classpath = classesDir +: depends.moddeps.dependClasspath.toSeqV
-    javaComp.javaMetaV() = new JavaMeta(Seq(classesDir), classesDir, classpath, classpath)
+    val classes = Seq(classesDir)
+    javaComp.javaMetaV() = new JavaMeta(classes, targetDir, classesDir, classpath, classpath)
     javaComp.addTesters()
 
     // TODO: this is expensive, can we do something cheaper
