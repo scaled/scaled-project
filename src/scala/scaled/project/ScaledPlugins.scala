@@ -61,7 +61,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
     project.addComponent(classOf[Depends], depends)
 
     // add a java component
-    val javaComp = new JavaComponent(project)
+    val javaComp = new JavaMetaComponent(project)
     project.addComponent(classOf[JavaComponent], javaComp)
 
     // init our JavaComponent
