@@ -61,13 +61,13 @@ class ScaledResolverPlugin extends ResolverPlugin {
     project.addComponent(classOf[Depends], depends)
 
     // add a java component
-    val javaComp = new JavaMetaComponent(project)
+    val classpath = depends.moddeps.dependClasspath.toSeqV
+    val javaComp = new JavaComponent(project) {
+      override def classes = Seq(classesDir)
+      override def buildClasspath = classpath
+      override def execClasspath = classesDir +: classpath
+    }
     project.addComponent(classOf[JavaComponent], javaComp)
-
-    // init our JavaComponent
-    val classpath = classesDir +: depends.moddeps.dependClasspath.toSeqV
-    val classes = Seq(classesDir)
-    javaComp.javaMetaV() = new JavaMeta(classes, targetDir, classesDir, classpath, classpath)
     javaComp.addTesters()
 
     // TODO: this is expensive, can we do something cheaper
@@ -81,19 +81,23 @@ class ScaledResolverPlugin extends ResolverPlugin {
         // override def kotlincOpts = pkg.kcopts.toSeq
         override def kotlincVers = depends.artifactVers(
           "org.jetbrains.kotlin", "kotlin-stdlib", super.kotlincVers)
+        override def outputDir = classesDir
         override protected def willCompile () {
-          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, javaComp.outputDir)
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, targetDir)
         }
       })
 
     } else {
+      val _targetDir = targetDir // avoid name conflict when overriding below
       project.addComponent(classOf[Compiler], new ScalaCompiler(project, javaComp) {
         override def javacOpts = pkg.jcopts.toSeq
         override def scalacOpts = pkg.scopts.toSeq
         override def scalacVers = depends.artifactVers(
           "org.scala-lang", "scala-library", super.scalacVers)
+        override def targetDir = _targetDir
+        override def outputDir = classesDir
         override protected def willCompile () {
-          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, javaComp.outputDir)
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, targetDir)
         }
       })
     }
