@@ -83,7 +83,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
           "org.jetbrains.kotlin", "kotlin-stdlib", super.kotlincVers)
         override def outputDir = classesDir
         override protected def willCompile () {
-          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, targetDir)
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, classesDir)
         }
       })
 
@@ -97,7 +97,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
         override def targetDir = _targetDir
         override def outputDir = classesDir
         override protected def willCompile () {
-          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, targetDir)
+          if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, classesDir)
         }
       })
     }
