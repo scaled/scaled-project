@@ -7,6 +7,7 @@ package scaled.project
 import java.nio.file.{Files, Path}
 import scaled._
 import scaled.pacman._
+import scaled.project.Depends
 
 @Plugin(tag="project-root")
 class ScaledRootPlugin extends RootPlugin {
@@ -26,7 +27,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
   override def metaFiles (root :Project.Root) =
     Seq("package.scaled", "module.scaled").map(root.path.resolve)
 
-  override def addComponents (project :Project) {
+  override def addComponents (project :Project) :Unit = {
     val rootPath = project.root.path
     val pkgFile = findPackage(rootPath, rootPath)
     val modFile = rootPath.resolve("module.scaled") // may not exist
@@ -82,7 +83,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
         override def kotlincVers = depends.artifactVers(
           "org.jetbrains.kotlin", "kotlin-stdlib", super.kotlincVers)
         override def outputDir = classesDir
-        override protected def willCompile () {
+        override protected def willCompile () :Unit = {
           if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, classesDir)
         }
       })
@@ -96,7 +97,7 @@ class ScaledResolverPlugin extends ResolverPlugin {
           "org.scala-lang", "scala-library", super.scalacVers)
         override def targetDir = _targetDir
         override def outputDir = classesDir
-        override protected def willCompile () {
+        override protected def willCompile () :Unit = {
           if (Files.exists(resourceDir)) Filez.copyAll(resourceDir, classesDir)
         }
       })

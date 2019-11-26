@@ -7,6 +7,7 @@ package scaled.project
 import java.nio.file.Path
 import scaled._
 import scaled.pacman._
+import scaled.project.Depends
 
 class ScaledDepends (project :Project, val pkg :Package, val mod :Module) extends Depends(project) {
   import Scaled._
